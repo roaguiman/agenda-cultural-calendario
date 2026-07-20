@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agenda Cultural Interuniversitaria - Calendario</title>
+<style>
+  :root{
+    --utpl:#1a4d8f;
+    --unl:#c98a1f;
+    --uide:#8f1a3d;
+    --bg:#f4f2ec;
+    --card:#ffffff;
+    --border:#dcd8cc;
+    --text:#242220;
+    --text-muted:#6b6860;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    background:var(--bg);
+    color:var(--text);
+  }
+  .wrap{max-width:1100px;margin:0 auto;padding:8px;position:relative;}
+
+  /* En desktop el calendario ocupa el 100% del contenedor, sin scroll horizontal */
+  .calendar-scroll{width:100%;}
+  .calendar-inner{width:100%;}
+
+  /* ---- Toolbar ---- */
+  .toolbar{
+    display:flex;align-items:center;justify-content:space-between;
+    margin-bottom:6px;flex-wrap:wrap;gap:8px;
+  }
+  .left-group{display:flex;align-items:center;gap:8px;}
+  .month-label{font-size:14px;font-weight:600;letter-spacing:.2px;}
+  .nav-btns{display:flex;gap:4px;}
+  .nav-btns button{
+    border:1px solid var(--border);background:var(--card);
+    border-radius:5px;width:24px;height:24px;cursor:pointer;font-size:13px;
+    color:var(--text);padding:0;
+  }
+  .nav-btns button#todayBtn{width:auto;padding:0 8px;font-size:11px;}
+  .nav-btns button:hover{background:#eee;}
+  .legend{display:flex;gap:10px;font-size:11px;color:var(--text-muted);}
+  .legend span{display:inline-flex;align-items:center;gap:4px;}
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
+
+  /* ---- Grid ---- */
+  .grid{
+    display:grid;grid-template-columns:repeat(7,minmax(0,1fr));
+    border:1px solid var(--border);border-radius:8px;overflow:hidden;
+    background:var(--border);gap:1px;width:100%;
+  }
+  .dow{
+    background:#2a2f45;color:#fff;text-align:center;
+    font-size:9px;font-weight:600;letter-spacing:.4px;
+    padding:4px 0;text-transform:uppercase;
+  }
+  .cell{
+    background:var(--card);min-height:64px;padding:4px;min-width:0;
+    display:flex;flex-direction:column;gap:3px;overflow:hidden;cursor:pointer;
+  }
+  .cell.empty{background:#faf9f5;cursor:default;}
+  .daynum{font-size:10px;color:var(--text-muted);font-weight:600;}
+  .cell.today .daynum{
+    color:#fff;background:var(--text);border-radius:50%;
+    width:16px;height:16px;display:flex;align-items:center;justify-content:center;
+  }
+  .evt{
+    display:block;width:100%;max-width:100%;min-width:0;
+    font-size:9px;line-height:1.2;padding:2px 4px;border-radius:3px;
+    color:#fff;cursor:pointer;overflow:hidden;text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .evt.utpl{background:var(--utpl);}
+  .evt.unl{background:var(--unl);}
+  .evt.uide{background:var(--uide);}
+  .evt-more{font-size:9px;color:var(--text-muted);padding-left:4px;cursor:pointer;}
+
+  /* ---- Detail overlay (flota encima, no empuja el layout) ---- */
+  .overlay{
+    display:none;position:absolute;inset:0;
+    background:rgba(20,18,15,0.35);
+    align-items:center;justify-content:center;
+    padding:20px;z-index:20;
+  }
+  .overlay.show{display:flex;}
+  .panel{
+    width:100%;max-width:380px;max-height:80%;overflow-y:auto;
+    border-radius:10px;background:var(--card);padding:16px 18px;
+    box-shadow:0 8px 24px rgba(0,0,0,.18);position:relative;
+  }
+  .panel .close-btn{
+    position:absolute;top:10px;right:12px;border:none;background:none;
+    font-size:18px;cursor:pointer;color:var(--text-muted);line-height:1;
+  }
+  .panel .close-btn:hover{color:var(--text);}
+  .panel .badge{
+    display:inline-block;font-size:11px;color:#fff;padding:2px 8px;
+    border-radius:4px;margin-bottom:6px;
+  }
+  .panel h3{margin:4px 0;font-size:16px;padding-right:20px;}
+  .panel p{margin:3px 0;font-size:13px;color:var(--text-muted);}
+
+  .daylist-header{margin-bottom:8px;padding-right:20px;}
+  .daylist-header h3{margin:0;font-size:15px;text-transform:capitalize;}
+  .daylist-item{
+    display:flex;align-items:center;gap:10px;padding:8px 4px;
+    border-bottom:1px solid var(--border);cursor:pointer;
+  }
+  .daylist-item:last-child{border-bottom:none;}
+  .daylist-item:hover{background:#f7f6f1;}
+  .daylist-chip{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .daylist-item .di-title{font-size:13px;font-weight:600;}
+  .daylist-item .di-sub{font-size:12px;color:var(--text-muted);}
+  .empty-day{font-size:13px;color:var(--text-muted);padding:6px 0;}
+  .back-btn{
+    border:none;background:none;color:var(--text-muted);cursor:pointer;
+    font-size:12px;padding:0 0 8px 0;display:inline-flex;align-items:center;gap:4px;
+  }
+  .back-btn:hover{color:var(--text);}
+
+  .status{font-size:11px;color:var(--text-muted);margin-top:8px;}
+
+  @media (max-width: 640px){
+    .month-label{order:-1;width:100%;text-align:center;}
+    .legend{width:100%;justify-content:center;flex-wrap:wrap;}
+    .cell{min-height:62px;}
+    .dow{font-size:9px;}
+    .evt{font-size:9px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="toolbar">
+    <div class="left-group">
+      <div class="nav-btns">
+        <button id="prevBtn">&#8249;</button>
+        <button id="todayBtn">Hoy</button>
+        <button id="nextBtn">&#8250;</button>
+      </div>
+      <div class="month-label" id="monthLabel"></div>
+    </div>
+    <div class="legend">
+      <span><span class="dot" style="background:var(--utpl)"></span>UTPL</span>
+      <span><span class="dot" style="background:var(--unl)"></span>UNL</span>
+      <span><span class="dot" style="background:var(--uide)"></span>UIDE</span>
+    </div>
+  </div>
+
+  <div class="calendar-scroll">
+    <div class="calendar-inner">
+      <div class="grid" id="dowRow"></div>
+      <div class="grid" id="calGrid" style="margin-top:1px;"></div>
+    </div>
+  </div>
+
+  <div class="status" id="statusMsg">Cargando eventos de ejemplo...</div>
+
+  <div class="overlay" id="overlay">
+    <div class="panel" id="panel">
+      <button class="close-btn" id="closeBtn">&#10005;</button>
+      <div id="panelBody"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ==========================================================
+   CONFIGURACIÓN DE DATOS
+   ==========================================================
+   Por ahora el calendario usa EVENTOS DE EJEMPLO (abajo).
+   Cuando tengas tu capa de Survey123 publicada, reemplaza la
+   función loadEvents() por una consulta a la API REST de tu
+   capa, así:
+
+   const LAYER_URL = "https://services.arcgis.com/XXXX/arcgis/rest/services/TU_CAPA/FeatureServer/0";
+
+   async function loadEvents(){
+     const url = LAYER_URL + "/query?where=1=1&outFields=*&f=json";
+     const res = await fetch(url);
+     const data = await res.json();
+     return data.features.map(f => ({
+       titulo: f.attributes.titulo,
+       fecha: new Date(f.attributes.fecha_evento),
+       hora: f.attributes.hora || "",
+       universidad: f.attributes.universidad,
+       categoria: f.attributes.categoria || "",
+       lugar: f.attributes.lugar || "",
+       descripcion: f.attributes.descripcion || ""
+     }));
+   }
+   ========================================================== */
+
+const EVENTOS_EJEMPLO = [
+  {titulo:"Exposición Memorias del Sur", fecha:new Date(2026,7,25), hora:"19:00", universidad:"UTPL", lugar:"Casa de la Cultura UTPL", descripcion:"Exposición fotográfica sobre la memoria colectiva del sur del país."},
+  {titulo:"Concierto Coral 360", fecha:new Date(2026,7,26), hora:"20:00", universidad:"UNL", lugar:"Casona Cultural UNL", descripcion:"Presentación del Coro Polifónico del Municipio de Loja."},
+  {titulo:"Taller de Fotografía", fecha:new Date(2026,7,27), hora:"15:00", universidad:"UIDE", lugar:"Campus UIDE - Loja", descripcion:"Taller práctico de composición fotográfica urbana."},
+  {titulo:"Festival de Artes Vivas", fecha:new Date(2026,7,28), hora:"17:00", universidad:"UNL", lugar:"Plaza Central de Loja", descripcion:"Muestra de danza, teatro y música en vivo."},
+  {titulo:"Presentación de Libro", fecha:new Date(2026,7,2), hora:"18:00", universidad:"UTPL", lugar:"Auditorio UTPL", descripcion:"Lanzamiento de nueva publicación de un docente investigador."},
+  {titulo:"Danza Tradicional Loja", fecha:new Date(2026,7,3), hora:"19:00", universidad:"UNL", lugar:"Casona Cultural UNL", descripcion:"Muestra de danza folclórica lojana."},
+  {titulo:"Taller de Teatro", fecha:new Date(2026,7,4), hora:"16:00", universidad:"UIDE", lugar:"Campus UIDE - Loja", descripcion:"Introducción a la actuación escénica."},
+  {titulo:"Recital de Piano", fecha:new Date(2026,7,5), hora:"19:30", universidad:"UTPL", lugar:"Auditorio UTPL", descripcion:"Recital a cargo de estudiantes de música."},
+  {titulo:"Expo Colectiva", fecha:new Date(2026,7,6), hora:"17:00", universidad:"UNL", lugar:"Casona Cultural UNL", descripcion:"Muestra de artistas plásticos locales."},
+  {titulo:"Cine al Aire Libre", fecha:new Date(2026,7,7), hora:"19:00", universidad:"UIDE", lugar:"Campus UIDE - Loja", descripcion:"Proyección de cine independiente ecuatoriano."},
+  {titulo:"Conversatorio Cultura y Territorio", fecha:new Date(2026,7,9), hora:"18:00", universidad:"UNL", lugar:"Casona Cultural UNL", descripcion:"Mesa de diálogo sobre patrimonio cultural territorial."},
+  {titulo:"Música en el Campus", fecha:new Date(2026,7,10), hora:"13:00", universidad:"UTPL", lugar:"Plazoleta UTPL", descripcion:"Concierto al mediodía con bandas estudiantiles."},
+  {titulo:"Taller de Pintura", fecha:new Date(2026,7,11), hora:"16:00", universidad:"UIDE", lugar:"Campus UIDE - Loja", descripcion:"Taller de técnicas de pintura al óleo."},
+  {titulo:"Noche de Tradiciones", fecha:new Date(2026,7,12), hora:"19:00", universidad:"UNL", lugar:"Casona Cultural UNL", descripcion:"Velada de música y relatos tradicionales."},
+  {titulo:"Concierto Acústico", fecha:new Date(2026,7,13), hora:"20:00", universidad:"UTPL", lugar:"Auditorio UTPL", descripcion:"Concierto acústico de artistas invitados."},
+];
+
+const uniClass = {UTPL:"utpl", UNL:"unl", UIDE:"uide"};
+const DOW = ["LUN","MAR","MIÉ","JUE","VIE","SÁB","DOM"];
+const MESES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+
+let current = new Date(2026,7,1);
+let eventos = [];
+
+const LAYER_URL = "https://services9.arcgis.com/2YA05qh4jhRDhuXH/arcgis/rest/services/survey123_086922573ce448be93a9466ab971f64c/FeatureServer/0";
+
+const LUGAR_LABELS = {
+  "Teatro Bolívar": "Teatro Bolívar",
+  "Centro Cultural Alfredo Mora Re": "Centro Cultural Alfredo Mora Reyes",
+  "Casona Universitaria": "Casona Universitaria",
+  "Teatro Benjamín Carrión": "Teatro Benjamín Carrión",
+  "Campus UTPL": "Campus UTPL",
+  "Campus UNL": "Campus UNL",
+  "Campus UIDE": "Campus UIDE",
+  "Espacio Público": "Espacio Público",
+  "other": "Otro"
+};
+
+async function loadEvents(){
+  try{
+    const url = LAYER_URL + "/query?where=1=1&outFields=*&f=json";
+    const res = await fetch(url);
+    const data = await res.json();
+    if(!data.features) return EVENTOS_EJEMPLO;
+
+    return data.features.map(f=>{
+      const a = f.attributes;
+      const fechaMs = a.fecha_y_hora_de_ejecuci_n;
+      const fecha = fechaMs ? new Date(fechaMs) : new Date();
+      const hora = fechaMs ? fecha.toLocaleTimeString("es-EC",{hour:"2-digit",minute:"2-digit"}) : "";
+
+      let lugar = LUGAR_LABELS[a.lugar_infraestructura] || a.lugar_infraestructura || "";
+      if((a.lugar_infraestructura === "other" || a.lugar_infraestructura === "Espacio Público") && a.si_seleccion_otro_especifique_e){
+        lugar = a.si_seleccion_otro_especifique_e;
+      }
+
+      return {
+        titulo: a.nombre_del_evento || "(Sin título)",
+        fecha: fecha,
+        hora: hora,
+        universidad: a.field_13 || "",
+        lugar: lugar,
+        descripcion: a.formato_del_evento ? ("Formato: " + a.formato_del_evento) : ""
+      };
+    });
+  }catch(err){
+    console.error("Error cargando eventos reales, usando ejemplo:", err);
+    return EVENTOS_EJEMPLO;
+  }
+}
+
+function sameDay(a,b){
+  return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
+}
+
+function renderDow(){
+  const row = document.getElementById("dowRow");
+  row.innerHTML = "";
+  DOW.forEach(d=>{
+    const el = document.createElement("div");
+    el.className="dow"; el.textContent=d;
+    row.appendChild(el);
+  });
+}
+
+function renderCalendar(){
+  document.getElementById("monthLabel").textContent = MESES[current.getMonth()] + " " + current.getFullYear();
+  const grid = document.getElementById("calGrid");
+  grid.innerHTML = "";
+
+  const firstOfMonth = new Date(current.getFullYear(), current.getMonth(), 1);
+  let startOffset = firstOfMonth.getDay() - 1;
+  if(startOffset < 0) startOffset = 6;
+
+  const daysInMonth = new Date(current.getFullYear(), current.getMonth()+1, 0).getDate();
+  const today = new Date();
+
+  for(let i=0;i<startOffset;i++){
+    const el = document.createElement("div");
+    el.className="cell empty";
+    grid.appendChild(el);
+  }
+
+  for(let day=1; day<=daysInMonth; day++){
+    const cellDate = new Date(current.getFullYear(), current.getMonth(), day);
+    const cell = document.createElement("div");
+    cell.className = "cell" + (sameDay(cellDate, today) ? " today" : "");
+
+    const num = document.createElement("div");
+    num.className="daynum";
+    num.textContent = day;
+    cell.appendChild(num);
+
+    const dayEvents = eventos.filter(e => sameDay(e.fecha, cellDate));
+    const maxShow = 2;
+    dayEvents.slice(0,maxShow).forEach(ev=>{
+      const chip = document.createElement("div");
+      chip.className = "evt " + (uniClass[ev.universidad] || "utpl");
+      chip.textContent = ev.titulo;
+      chip.onclick = (e)=>{ e.stopPropagation(); showDetail(ev, cellDate); };
+      cell.appendChild(chip);
+    });
+    if(dayEvents.length > maxShow){
+      const more = document.createElement("div");
+      more.className="evt-more";
+      more.textContent = "+"+(dayEvents.length-maxShow)+" más";
+      more.onclick = (e)=>{ e.stopPropagation(); showDayList(cellDate); };
+      cell.appendChild(more);
+    }
+
+    cell.onclick = ()=> showDayList(cellDate);
+    grid.appendChild(cell);
+  }
+}
+
+function openOverlay(){
+  document.getElementById("overlay").classList.add("show");
+}
+function closeOverlay(){
+  document.getElementById("overlay").classList.remove("show");
+}
+
+function showDayList(cellDate){
+  const dayEvents = eventos.filter(e => sameDay(e.fecha, cellDate));
+  const body = document.getElementById("panelBody");
+  openOverlay();
+
+  const dateLabel = cellDate.toLocaleDateString("es-EC",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+
+  if(dayEvents.length === 0){
+    body.innerHTML = `
+      <div class="daylist-header"><h3>${dateLabel}</h3></div>
+      <div class="empty-day">No hay eventos registrados este día.</div>
+    `;
+    return;
+  }
+
+  const colorOf = {UTPL:"#1a4d8f",UNL:"#c98a1f",UIDE:"#8f1a3d"};
+  let html = `<div class="daylist-header"><h3>${dateLabel}</h3></div>`;
+  dayEvents.forEach((ev, idx)=>{
+    html += `
+      <div class="daylist-item" data-idx="${idx}">
+        <span class="daylist-chip" style="background:${colorOf[ev.universidad]||'#555'}"></span>
+        <div>
+          <div class="di-title">${ev.titulo}</div>
+          <div class="di-sub">${ev.hora ? ev.hora + " · " : ""}${ev.universidad}${ev.lugar ? " · " + ev.lugar : ""}</div>
+        </div>
+      </div>`;
+  });
+  body.innerHTML = html;
+
+  body.querySelectorAll(".daylist-item").forEach(item=>{
+    item.onclick = ()=> showDetail(dayEvents[+item.dataset.idx], cellDate);
+  });
+}
+
+function showDetail(ev, cellDate){
+  const body = document.getElementById("panelBody");
+  openOverlay();
+
+  const colorOf = {UTPL:"#1a4d8f",UNL:"#c98a1f",UIDE:"#8f1a3d"};
+  const dateFull = ev.fecha.toLocaleDateString("es-EC",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+
+  body.innerHTML = `
+    <button class="back-btn" id="backBtn">&#8249; Volver a los eventos del día</button>
+    <span class="badge" style="background:${colorOf[ev.universidad]||'#333'}">${ev.universidad}</span>
+    <h3>${ev.titulo}</h3>
+    <p>${dateFull}${ev.hora ? " · " + ev.hora : ""}</p>
+    <p>${ev.lugar || ""}</p>
+    <p>${ev.descripcion || ""}</p>
+  `;
+
+  document.getElementById("backBtn").onclick = ()=> showDayList(cellDate);
+}
+
+document.getElementById("closeBtn").onclick = closeOverlay;
+document.getElementById("overlay").onclick = (e)=>{
+  if(e.target.id === "overlay") closeOverlay();
+};
+
+document.getElementById("prevBtn").onclick = ()=>{
+  current = new Date(current.getFullYear(), current.getMonth()-1, 1);
+  renderCalendar();
+};
+document.getElementById("nextBtn").onclick = ()=>{
+  current = new Date(current.getFullYear(), current.getMonth()+1, 1);
+  renderCalendar();
+};
+document.getElementById("todayBtn").onclick = ()=>{
+  current = new Date();
+  renderCalendar();
+};
+
+(async function init(){
+  renderDow();
+  eventos = await loadEvents();
+
+  if(eventos.length > 0){
+    const hoy = new Date();
+    const ordenados = [...eventos].sort((a,b)=> a.fecha - b.fecha);
+    const proximo = ordenados.find(e => e.fecha >= hoy) || ordenados[0];
+    current = new Date(proximo.fecha.getFullYear(), proximo.fecha.getMonth(), 1);
+  }
+
+  renderCalendar();
+  document.getElementById("statusMsg").textContent =
+    "Mostrando " + eventos.length + " eventos.";
+})();
+</script>
+</body>
+</html>
